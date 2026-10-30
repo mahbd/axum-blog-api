@@ -1,0 +1,5 @@
+target
+.env
+blog.db*
+uploads
+.git

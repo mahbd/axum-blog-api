@@ -1,0 +1,45 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT p.id as \"id!\", p.title, snippet(posts_fts, 1, '[', ']', '...', 8) as \"snippet!: String\"\n               FROM posts_fts JOIN posts p ON p.id = posts_fts.rowid\n               WHERE posts_fts MATCH ? AND p.deleted_at IS NULL\n               ORDER BY bm25(posts_fts) LIMIT 20",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer",
+        "origin": {
+          "Table": {
+            "table": "posts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "name": "title",
+        "ordinal": 1,
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "posts",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "name": "snippet!: String",
+        "ordinal": 2,
+        "type_info": "Null",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "23e8568c54fc01d546aa73219b4f87403850be392777a346bd212fe83680051f"
+}

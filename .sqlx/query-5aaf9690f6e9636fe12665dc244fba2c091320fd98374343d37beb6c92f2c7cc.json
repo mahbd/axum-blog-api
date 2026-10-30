@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE posts SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "5aaf9690f6e9636fe12665dc244fba2c091320fd98374343d37beb6c92f2c7cc"
+}
