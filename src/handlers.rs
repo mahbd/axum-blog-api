@@ -305,8 +305,9 @@ pub fn can_edit(user: &AuthUser, post: &Post) -> bool {
 
 pub async fn list_users<R: Repo>(
     State(repo): State<R>,
-    _admin: AdminUser,
+    AdminUser(admin): AdminUser,
 ) -> Result<Json<Vec<User>>, ApiError> {
+    tracing::info!(admin = admin.id, "listing users");
     Ok(Json(repo.list_users().await?))
 }
 
