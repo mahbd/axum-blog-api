@@ -1,12 +1,12 @@
-use axum::extract::rejection::{JsonRejection, QueryRejection};
+use axum::Json;
 use axum::extract::multipart::MultipartError;
+use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
-use serde_json::json;
-use thiserror::Error;
-use std::collections::BTreeMap;
 use serde::Serialize;
+use serde_json::json;
+use std::collections::BTreeMap;
+use thiserror::Error;
 use utoipa::ToSchema;
 
 #[derive(Debug, Error)]
@@ -62,11 +62,17 @@ impl IntoResponse for ApiError {
                     .field_errors()
                     .iter()
                     .map(|(field, errs)| {
-                        let msgs = errs.iter().map(|e| e.message.clone().unwrap_or(e.code.clone()).to_string()).collect();
+                        let msgs = errs
+                            .iter()
+                            .map(|e| e.message.clone().unwrap_or(e.code.clone()).to_string())
+                            .collect();
                         (field.to_string(), msgs)
                     })
                     .collect();
-                return (StatusCode::UNPROCESSABLE_ENTITY, Json(json!({ "error": "validation failed", "fields": fields })))
+                return (
+                    StatusCode::UNPROCESSABLE_ENTITY,
+                    Json(json!({ "error": "validation failed", "fields": fields })),
+                )
                     .into_response();
             }
             ApiError::Hash(err) => {

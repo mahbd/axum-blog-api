@@ -14,7 +14,10 @@ impl Mailer {
         let transport = AsyncSmtpTransport::<Tokio1Executor>::builder_dangerous(&cfg.smtp_host)
             .port(cfg.smtp_port)
             .build();
-        Mailer { transport, from: cfg.mail_from.clone() }
+        Mailer {
+            transport,
+            from: cfg.mail_from.clone(),
+        }
     }
 
     pub async fn welcome(&self, to: &str) -> anyhow::Result<()> {
@@ -23,7 +26,9 @@ impl Mailer {
             .to(to.parse()?)
             .subject("Welcome to the LCE blog")
             .header(ContentType::TEXT_PLAIN)
-            .body(format!("Hi {to},\n\nthanks for signing up. Happy writing!\n"))?;
+            .body(format!(
+                "Hi {to},\n\nthanks for signing up. Happy writing!\n"
+            ))?;
         tokio::time::sleep(std::time::Duration::from_secs(2)).await; // pretend the provider is slow
         self.transport.send(message).await?;
         Ok(())

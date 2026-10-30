@@ -1,15 +1,17 @@
-use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
+use argon2::password_hash::{PasswordVerifier, phc::PasswordHash};
+use argon2::{Argon2, password_hash::PasswordHasher};
+use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde::{Deserialize, Serialize};
-use std::time::{SystemTime, UNIX_EPOCH};
-use argon2::{password_hash::PasswordHasher, Argon2};
-use argon2::password_hash::{phc::PasswordHash, PasswordVerifier};
 use sha2::{Digest, Sha256};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::error::ApiError;
 
 pub async fn hash_password(password: String) -> Result<String, ApiError> {
     let hash = tokio::task::spawn_blocking(move || {
-        Argon2::default().hash_password(password.as_bytes()).map(|h| h.to_string())
+        Argon2::default()
+            .hash_password(password.as_bytes())
+            .map(|h| h.to_string())
     })
     .await
     .expect("hash task panicked")?;
@@ -24,15 +26,30 @@ pub struct Claims {
 }
 
 pub fn make_token(user_id: i64, role: &str, secret: &str) -> Result<String, ApiError> {
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
-    let claims = Claims { sub: user_id, role: role.to_string(), exp: now + 900 };
-    Ok(encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_bytes()))?)
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let claims = Claims {
+        sub: user_id,
+        role: role.to_string(),
+        exp: now + 900,
+    };
+    Ok(encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(secret.as_bytes()),
+    )?)
 }
 
 pub async fn verify_password(password: String, hash: String) -> Result<bool, ApiError> {
     let ok = tokio::task::spawn_blocking(move || {
         let parsed = PasswordHash::new(&hash)?;
-        Ok::<_, argon2::password_hash::Error>(Argon2::default().verify_password(password.as_bytes(), &parsed).is_ok())
+        Ok::<_, argon2::password_hash::Error>(
+            Argon2::default()
+                .verify_password(password.as_bytes(), &parsed)
+                .is_ok(),
+        )
     })
     .await
     .expect("verify task panicked")?;
@@ -42,18 +59,25 @@ pub async fn verify_password(password: String, hash: String) -> Result<bool, Api
 pub fn read_token(token: &str, secret: &str) -> Result<Claims, ApiError> {
     let mut validation = Validation::new(Algorithm::HS256);
     validation.leeway = 0;
-    let data = decode::<Claims>(token, &DecodingKey::from_secret(secret.as_bytes()), &validation)
-        .map_err(|err| {
-            tracing::info!(?err, "bad token");
-            ApiError::Unauthorized
-        })?;
+    let data = decode::<Claims>(
+        token,
+        &DecodingKey::from_secret(secret.as_bytes()),
+        &validation,
+    )
+    .map_err(|err| {
+        tracing::info!(?err, "bad token");
+        ApiError::Unauthorized
+    })?;
     Ok(data.claims)
 }
 
 pub const REFRESH_SECS: i64 = 30 * 24 * 3600;
 
 pub fn now() -> i64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64
 }
 
 pub fn new_refresh_token() -> String {

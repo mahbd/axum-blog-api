@@ -1,8 +1,8 @@
-use crate::mail::Mailer;
-use tokio::sync::mpsc;
 use crate::auth;
+use crate::mail::Mailer;
 use crate::repo::Repo;
-use tokio::time::{interval, Duration, MissedTickBehavior};
+use tokio::sync::mpsc;
+use tokio::time::{Duration, MissedTickBehavior, interval};
 
 pub enum Job {
     Welcome { email: String },

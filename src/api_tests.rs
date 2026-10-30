@@ -1,7 +1,7 @@
-use axum::body::{to_bytes, Body};
+use axum::body::{Body, to_bytes};
 use axum::extract::ConnectInfo;
-use axum::http::{header, Method, Request, StatusCode};
-use serde_json::{json, Value};
+use axum::http::{Method, Request, StatusCode, header};
+use serde_json::{Value, json};
 use sqlx::SqlitePool;
 use tower::ServiceExt;
 
@@ -11,23 +11,45 @@ fn test_app(pool: SqlitePool) -> Router {
     let (jobs, _rx) = mpsc::channel(10);
     let (live, _) = broadcast::channel(10);
     let client = redis::Client::open("redis://127.0.0.1:1").unwrap();
-    let config = ConnectionManagerConfig::new().set_number_of_retries(0).set_connection_timeout(Some(Duration::from_millis(100)));
+    let config = ConnectionManagerConfig::new()
+        .set_number_of_retries(0)
+        .set_connection_timeout(Some(Duration::from_millis(100)));
     let cache = ConnectionManager::new_lazy_with_config(client, config).unwrap();
     let handle = PrometheusBuilder::new().build_recorder().handle();
-    app(SqliteRepo { pool }, MemStorage::default(), jobs, cache, live, handle)
+    app(
+        SqliteRepo { pool },
+        MemStorage::default(),
+        jobs,
+        cache,
+        live,
+        handle,
+    )
 }
 
-async fn call(app: &Router, method: Method, uri: &str, token: Option<&str>, body: Value) -> (StatusCode, Value) {
-    let mut req = Request::builder().method(method).uri(uri).header(header::CONTENT_TYPE, "application/json");
+async fn call(
+    app: &Router,
+    method: Method,
+    uri: &str,
+    token: Option<&str>,
+    body: Value,
+) -> (StatusCode, Value) {
+    let mut req = Request::builder()
+        .method(method)
+        .uri(uri)
+        .header(header::CONTENT_TYPE, "application/json");
     if let Some(t) = token {
         req = req.header(header::AUTHORIZATION, format!("Bearer {t}"));
     }
     let mut req = req.body(Body::from(body.to_string())).unwrap();
-    req.extensions_mut().insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 4000))));
+    req.extensions_mut()
+        .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 4000))));
     let res = app.clone().oneshot(req).await.unwrap();
     let status = res.status();
     let bytes = to_bytes(res.into_body(), usize::MAX).await.unwrap();
-    (status, serde_json::from_slice(&bytes).unwrap_or(Value::Null))
+    (
+        status,
+        serde_json::from_slice(&bytes).unwrap_or(Value::Null),
+    )
 }
 
 async fn login(app: &Router, email: &str) -> String {
@@ -45,7 +67,14 @@ async fn create_and_get(pool: SqlitePool) {
     let new = json!({ "title": "Hello", "body": "First post" });
     let (status, created) = call(&app, Method::POST, "/posts", Some(&token), new).await;
     assert_eq!(status, StatusCode::CREATED);
-    let (status, post) = call(&app, Method::GET, &format!("/posts/{}", created["id"]), None, Value::Null).await;
+    let (status, post) = call(
+        &app,
+        Method::GET,
+        &format!("/posts/{}", created["id"]),
+        None,
+        Value::Null,
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(post["title"], "Hello");
 }

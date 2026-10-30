@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use validator::{Validate, ValidationError};
 use utoipa::ToSchema;
+use validator::{Validate, ValidationError};
 
 #[derive(Serialize, Deserialize, Clone, sqlx::FromRow, ToSchema)]
 pub struct Post {
@@ -14,7 +14,10 @@ pub struct Post {
 
 #[derive(Deserialize, Validate, ToSchema)]
 pub struct NewPost {
-    #[validate(length(min = 1, max = 200, message = "1 to 200 characters"), custom(function = "not_blank"))]
+    #[validate(
+        length(min = 1, max = 200, message = "1 to 200 characters"),
+        custom(function = "not_blank")
+    )]
     pub title: String,
     #[validate(length(min = 1, max = 20000, message = "must not be empty"))]
     pub body: String,
@@ -33,7 +36,10 @@ pub struct Comment {
 
 #[derive(Deserialize, Validate)]
 pub struct NewComment {
-    #[validate(length(min = 1, max = 2000, message = "1 to 2000 characters"), custom(function = "not_blank"))]
+    #[validate(
+        length(min = 1, max = 2000, message = "1 to 2000 characters"),
+        custom(function = "not_blank")
+    )]
     pub body: String,
 }
 
@@ -156,7 +162,14 @@ pub struct PostV2 {
 
 impl From<Post> for PostV2 {
     fn from(p: Post) -> PostV2 {
-        PostV2 { id: p.id, title: p.title, content: p.body, slug: p.slug, author_id: p.author_id, created_at: p.created_at }
+        PostV2 {
+            id: p.id,
+            title: p.title,
+            content: p.body,
+            slug: p.slug,
+            author_id: p.author_id,
+            created_at: p.created_at,
+        }
     }
 }
 

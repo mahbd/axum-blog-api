@@ -1,4 +1,4 @@
-use redis::{aio::ConnectionManager, AsyncCommands};
+use redis::{AsyncCommands, aio::ConnectionManager};
 
 use crate::models::Post;
 
@@ -17,7 +17,10 @@ pub async fn get(redis: &ConnectionManager, id: i64) -> Option<Post> {
 pub async fn put(redis: &ConnectionManager, post: &Post) {
     let mut conn = redis.clone();
     let json = serde_json::to_string(post).unwrap();
-    if let Err(err) = conn.set_ex::<_, _, ()>(format!("post:{}", post.id), json, 60).await {
+    if let Err(err) = conn
+        .set_ex::<_, _, ()>(format!("post:{}", post.id), json, 60)
+        .await
+    {
         tracing::warn!(?err, "redis set failed");
     }
 }

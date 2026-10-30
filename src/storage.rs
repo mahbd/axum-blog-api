@@ -1,7 +1,7 @@
+use std::collections::HashMap;
 use std::future::Future;
 use std::io;
 use std::path::PathBuf;
-use std::collections::HashMap;
 use std::sync::Mutex;
 
 pub trait Storage: Send + Sync + 'static {
@@ -17,7 +17,9 @@ pub struct LocalStorage {
 impl LocalStorage {
     pub fn new(root: &str) -> LocalStorage {
         std::fs::create_dir_all(root).unwrap();
-        LocalStorage { root: PathBuf::from(root) }
+        LocalStorage {
+            root: PathBuf::from(root),
+        }
     }
 
     fn path(&self, name: &str) -> io::Result<PathBuf> {
@@ -49,12 +51,20 @@ pub struct MemStorage {
 
 impl Storage for MemStorage {
     async fn put(&self, name: &str, data: &[u8]) -> io::Result<()> {
-        self.files.lock().unwrap().insert(name.to_string(), data.to_vec());
+        self.files
+            .lock()
+            .unwrap()
+            .insert(name.to_string(), data.to_vec());
         Ok(())
     }
 
     async fn get(&self, name: &str) -> io::Result<Vec<u8>> {
-        self.files.lock().unwrap().get(name).cloned().ok_or(io::Error::from(io::ErrorKind::NotFound))
+        self.files
+            .lock()
+            .unwrap()
+            .get(name)
+            .cloned()
+            .ok_or(io::Error::from(io::ErrorKind::NotFound))
     }
 
     async fn delete(&self, name: &str) -> io::Result<()> {

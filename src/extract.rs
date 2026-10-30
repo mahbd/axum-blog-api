@@ -1,13 +1,13 @@
-use axum::extract::{FromRequest, FromRequestParts, Request};
 use axum::Json;
+use axum::extract::{FromRequest, FromRequestParts, Request};
 use axum::http::{header, request::Parts};
 use serde::de::DeserializeOwned;
-use validator::Validate;
 use std::str::FromStr;
+use validator::Validate;
 
-use crate::error::ApiError;
 use crate::auth;
 use crate::config::config;
+use crate::error::ApiError;
 
 pub struct ValidJson<T>(pub T);
 
@@ -41,7 +41,10 @@ impl<S: Send + Sync> FromRequestParts<S> for AuthUser {
             .and_then(|v| v.strip_prefix("Bearer "))
             .ok_or(ApiError::Unauthorized)?;
         let claims = auth::read_token(token, &config().jwt_secret)?;
-        Ok(AuthUser { id: claims.sub, role: claims.role.parse()? })
+        Ok(AuthUser {
+            id: claims.sub,
+            role: claims.role.parse()?,
+        })
     }
 }
 

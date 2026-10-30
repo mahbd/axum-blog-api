@@ -2,28 +2,66 @@ use std::future::Future;
 
 use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 
-use crate::models::{slugify, Comment, Hit, Image, ListFilter, NewComment, NewPost, Post, PostWithTags, Sort, User, UserWithHash};
+use crate::models::{
+    Comment, Hit, Image, ListFilter, NewComment, NewPost, Post, PostWithTags, Sort, User,
+    UserWithHash, slugify,
+};
 
 pub trait Repo: Clone + Send + Sync + 'static {
     fn list(&self, f: ListFilter) -> impl Future<Output = sqlx::Result<(Vec<Post>, i64)>> + Send;
     fn get(&self, id: i64) -> impl Future<Output = sqlx::Result<Option<Post>>> + Send;
-    fn create(&self, author_id: i64, new: NewPost) -> impl Future<Output = sqlx::Result<PostWithTags>> + Send;
-    fn update(&self, id: i64, new: NewPost) -> impl Future<Output = sqlx::Result<Option<Post>>> + Send;
+    fn create(
+        &self,
+        author_id: i64,
+        new: NewPost,
+    ) -> impl Future<Output = sqlx::Result<PostWithTags>> + Send;
+    fn update(
+        &self,
+        id: i64,
+        new: NewPost,
+    ) -> impl Future<Output = sqlx::Result<Option<Post>>> + Send;
     fn delete(&self, id: i64) -> impl Future<Output = sqlx::Result<bool>> + Send;
     fn restore(&self, id: i64) -> impl Future<Output = sqlx::Result<bool>> + Send;
-    fn list_comments(&self, post_id: i64) -> impl Future<Output = sqlx::Result<Vec<Comment>>> + Send;
-    fn add_comment(&self, post_id: i64, new: NewComment) -> impl Future<Output = sqlx::Result<Comment>> + Send;
+    fn list_comments(
+        &self,
+        post_id: i64,
+    ) -> impl Future<Output = sqlx::Result<Vec<Comment>>> + Send;
+    fn add_comment(
+        &self,
+        post_id: i64,
+        new: NewComment,
+    ) -> impl Future<Output = sqlx::Result<Comment>> + Send;
     fn search(&self, q: &str) -> impl Future<Output = sqlx::Result<Vec<Hit>>> + Send;
-    fn create_user(&self, email: &str, password_hash: &str) -> impl Future<Output = sqlx::Result<User>> + Send;
-    fn find_user_by_email(&self, email: &str) -> impl Future<Output = sqlx::Result<Option<UserWithHash>>> + Send;
+    fn create_user(
+        &self,
+        email: &str,
+        password_hash: &str,
+    ) -> impl Future<Output = sqlx::Result<User>> + Send;
+    fn find_user_by_email(
+        &self,
+        email: &str,
+    ) -> impl Future<Output = sqlx::Result<Option<UserWithHash>>> + Send;
     fn get_user(&self, id: i64) -> impl Future<Output = sqlx::Result<Option<User>>> + Send;
-    fn store_refresh(&self, hash: &str, user_id: i64, expires_at: i64) -> impl Future<Output = sqlx::Result<()>> + Send;
-    fn take_refresh(&self, hash: &str, now: i64) -> impl Future<Output = sqlx::Result<Option<i64>>> + Send;
+    fn store_refresh(
+        &self,
+        hash: &str,
+        user_id: i64,
+        expires_at: i64,
+    ) -> impl Future<Output = sqlx::Result<()>> + Send;
+    fn take_refresh(
+        &self,
+        hash: &str,
+        now: i64,
+    ) -> impl Future<Output = sqlx::Result<Option<i64>>> + Send;
     fn delete_refresh(&self, hash: &str) -> impl Future<Output = sqlx::Result<()>> + Send;
     fn delete_expired_refresh(&self, now: i64) -> impl Future<Output = sqlx::Result<u64>> + Send;
     fn list_users(&self) -> impl Future<Output = sqlx::Result<Vec<User>>> + Send;
     fn ping(&self) -> impl Future<Output = sqlx::Result<()>> + Send;
-    fn add_image(&self, post_id: i64, url: &str) -> impl Future<Output = sqlx::Result<Image>> + Send;
+    fn add_image(
+        &self,
+        post_id: i64,
+        url: &str,
+    ) -> impl Future<Output = sqlx::Result<Image>> + Send;
 }
 
 #[derive(Clone)]
@@ -33,7 +71,9 @@ pub struct SqliteRepo {
 
 impl Repo for SqliteRepo {
     async fn list(&self, f: ListFilter) -> sqlx::Result<(Vec<Post>, i64)> {
-        let mut q = QueryBuilder::<Sqlite>::new("SELECT p.id, p.title, p.body, p.slug, p.created_at, p.author_id FROM posts p WHERE p.deleted_at IS NULL");
+        let mut q = QueryBuilder::<Sqlite>::new(
+            "SELECT p.id, p.title, p.body, p.slug, p.created_at, p.author_id FROM posts p WHERE p.deleted_at IS NULL",
+        );
         if let Some(tag) = &f.tag {
             q.push(" AND p.id IN (SELECT pt.post_id FROM post_tags pt JOIN tags t ON t.id = pt.tag_id WHERE t.name = ")
                 .push_bind(tag.clone())
@@ -45,10 +85,12 @@ impl Repo for SqliteRepo {
             Sort::Title => " ORDER BY p.title ASC",
         });
         q.push(" LIMIT ").push_bind(f.per_page as i64);
-        q.push(" OFFSET ").push_bind(((f.page - 1) * f.per_page) as i64);
+        q.push(" OFFSET ")
+            .push_bind(((f.page - 1) * f.per_page) as i64);
         let posts = q.build_query_as::<Post>().fetch_all(&self.pool).await?;
 
-        let mut c = QueryBuilder::<Sqlite>::new("SELECT COUNT(*) FROM posts p WHERE p.deleted_at IS NULL");
+        let mut c =
+            QueryBuilder::<Sqlite>::new("SELECT COUNT(*) FROM posts p WHERE p.deleted_at IS NULL");
         if let Some(tag) = &f.tag {
             c.push(" AND p.id IN (SELECT pt.post_id FROM post_tags pt JOIN tags t ON t.id = pt.tag_id WHERE t.name = ")
                 .push_bind(tag.clone())
@@ -92,9 +134,12 @@ impl Repo for SqliteRepo {
         .fetch_one(&mut *tx)
         .await?;
         for tag in &new.tags {
-            sqlx::query!("INSERT INTO tags (name) VALUES (?) ON CONFLICT (name) DO NOTHING", tag)
-                .execute(&mut *tx)
-                .await?;
+            sqlx::query!(
+                "INSERT INTO tags (name) VALUES (?) ON CONFLICT (name) DO NOTHING",
+                tag
+            )
+            .execute(&mut *tx)
+            .await?;
             sqlx::query!(
                 "INSERT INTO post_tags (post_id, tag_id) SELECT ?, id FROM tags WHERE name = ?",
                 post.id,
@@ -104,7 +149,10 @@ impl Repo for SqliteRepo {
             .await?;
         }
         tx.commit().await?;
-        Ok(PostWithTags { post, tags: new.tags })
+        Ok(PostWithTags {
+            post,
+            tags: new.tags,
+        })
     }
 
     async fn update(&self, id: i64, new: NewPost) -> sqlx::Result<Option<Post>> {
@@ -120,16 +168,22 @@ impl Repo for SqliteRepo {
     }
 
     async fn delete(&self, id: i64) -> sqlx::Result<bool> {
-        let result = sqlx::query!("UPDATE posts SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted_at IS NULL", id)
-            .execute(&self.pool)
-            .await?;
+        let result = sqlx::query!(
+            "UPDATE posts SET deleted_at = CURRENT_TIMESTAMP WHERE id = ? AND deleted_at IS NULL",
+            id
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(result.rows_affected() > 0)
     }
 
     async fn restore(&self, id: i64) -> sqlx::Result<bool> {
-        let result = sqlx::query!("UPDATE posts SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL", id)
-            .execute(&self.pool)
-            .await?;
+        let result = sqlx::query!(
+            "UPDATE posts SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL",
+            id
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(result.rows_affected() > 0)
     }
 
@@ -155,9 +209,13 @@ impl Repo for SqliteRepo {
     }
 
     async fn get_user(&self, id: i64) -> sqlx::Result<Option<User>> {
-        sqlx::query_as!(User, "SELECT id, email, role, created_at FROM users WHERE id = ?", id)
-            .fetch_optional(&self.pool)
-            .await
+        sqlx::query_as!(
+            User,
+            "SELECT id, email, role, created_at FROM users WHERE id = ?",
+            id
+        )
+        .fetch_optional(&self.pool)
+        .await
     }
 
     async fn store_refresh(&self, hash: &str, user_id: i64, expires_at: i64) -> sqlx::Result<()> {
@@ -183,12 +241,16 @@ impl Repo for SqliteRepo {
     }
 
     async fn delete_refresh(&self, hash: &str) -> sqlx::Result<()> {
-        sqlx::query!("DELETE FROM refresh_tokens WHERE token_hash = ?", hash).execute(&self.pool).await?;
+        sqlx::query!("DELETE FROM refresh_tokens WHERE token_hash = ?", hash)
+            .execute(&self.pool)
+            .await?;
         Ok(())
     }
 
     async fn delete_expired_refresh(&self, now: i64) -> sqlx::Result<u64> {
-        let done = sqlx::query!("DELETE FROM refresh_tokens WHERE expires_at < ?", now).execute(&self.pool).await?;
+        let done = sqlx::query!("DELETE FROM refresh_tokens WHERE expires_at < ?", now)
+            .execute(&self.pool)
+            .await?;
         Ok(done.rows_affected())
     }
 
@@ -214,9 +276,12 @@ impl Repo for SqliteRepo {
     }
 
     async fn list_users(&self) -> sqlx::Result<Vec<User>> {
-        sqlx::query_as!(User, "SELECT id, email, role, created_at FROM users ORDER BY id")
-            .fetch_all(&self.pool)
-            .await
+        sqlx::query_as!(
+            User,
+            "SELECT id, email, role, created_at FROM users ORDER BY id"
+        )
+        .fetch_all(&self.pool)
+        .await
     }
 
     async fn ping(&self) -> sqlx::Result<()> {

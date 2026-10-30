@@ -25,11 +25,29 @@ impl Config {
         let jwt_secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
         let storage = std::env::var("STORAGE").unwrap_or("local".to_string());
         let smtp_host = std::env::var("SMTP_HOST").unwrap_or("localhost".to_string());
-        let smtp_port = std::env::var("SMTP_PORT").unwrap_or("1025".to_string()).parse().expect("SMTP_PORT is a port number");
-        let mail_from = std::env::var("MAIL_FROM").unwrap_or("LCE Blog <blog@example.com>".to_string());
-        let cleanup_secs = std::env::var("CLEANUP_SECS").unwrap_or("3600".to_string()).parse().expect("CLEANUP_SECS is a number");
+        let smtp_port = std::env::var("SMTP_PORT")
+            .unwrap_or("1025".to_string())
+            .parse()
+            .expect("SMTP_PORT is a port number");
+        let mail_from =
+            std::env::var("MAIL_FROM").unwrap_or("LCE Blog <blog@example.com>".to_string());
+        let cleanup_secs = std::env::var("CLEANUP_SECS")
+            .unwrap_or("3600".to_string())
+            .parse()
+            .expect("CLEANUP_SECS is a number");
         let redis_url = std::env::var("REDIS_URL").unwrap_or("redis://127.0.0.1:6379".to_string());
-        Config { host, port, database_url, jwt_secret, storage, smtp_host, smtp_port, mail_from, cleanup_secs, redis_url }
+        Config {
+            host,
+            port,
+            database_url,
+            jwt_secret,
+            storage,
+            smtp_host,
+            smtp_port,
+            mail_from,
+            cleanup_secs,
+            redis_url,
+        }
     }
 }
 
